@@ -4,6 +4,7 @@ using CourseCenter.Api;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CourseCenter.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260129202217_mentions")]
+    partial class mentions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -509,12 +512,6 @@ namespace CourseCenter.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("ArchivedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ArchivedByUserId")
-                        .HasColumnType("int");
-
                     b.Property<int?>("AssignedUserId")
                         .HasColumnType("int");
 
@@ -534,12 +531,6 @@ namespace CourseCenter.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsArchived")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LostReason")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -557,41 +548,6 @@ namespace CourseCenter.Api.Migrations
                     b.HasIndex("AssignedUserId");
 
                     b.ToTable("Leads");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadCall", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CallResult")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CreatedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("DurationInMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LeadId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("LeadId");
-
-                    b.ToTable("LeadCalls");
                 });
 
             modelBuilder.Entity("CourseCenter.Api.Leads.LeadMention", b =>
@@ -622,41 +578,6 @@ namespace CourseCenter.Api.Migrations
                     b.HasIndex("LeadNoteId");
 
                     b.ToTable("LeadMentions");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Channel")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CreatedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Direction")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("LeadId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("MessagePreview")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("LeadId");
-
-                    b.ToTable("LeadMessages");
                 });
 
             modelBuilder.Entity("CourseCenter.Api.Leads.LeadNote", b =>
@@ -695,142 +616,6 @@ namespace CourseCenter.Api.Migrations
                     b.HasIndex("LeadId1");
 
                     b.ToTable("LeadNotes");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadStage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsFinal")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsLost")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsWon")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("LeadStages");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadStageHistory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("ChangedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ChangedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("FromStageId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LeadId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ToStageId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChangedByUserId");
-
-                    b.HasIndex("FromStageId");
-
-                    b.HasIndex("LeadId");
-
-                    b.HasIndex("ToStageId");
-
-                    b.ToTable("LeadStageHistory");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadTag", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Color")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("LeadTags");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadTagLink", b =>
-                {
-                    b.Property<int>("LeadId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TagId")
-                        .HasColumnType("int");
-
-                    b.HasKey("LeadId", "TagId");
-
-                    b.HasIndex("TagId");
-
-                    b.ToTable("LeadTagLinks");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadTask", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CreatedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("LeadId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("LeadId");
-
-                    b.ToTable("LeadTasks");
                 });
 
             modelBuilder.Entity("CourseCenter.Api.Payments.Payment", b =>
@@ -1201,25 +986,6 @@ namespace CourseCenter.Api.Migrations
                     b.Navigation("AssignedUser");
                 });
 
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadCall", b =>
-                {
-                    b.HasOne("User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CourseCenter.Api.Leads.Lead", "Lead")
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("Lead");
-                });
-
             modelBuilder.Entity("CourseCenter.Api.Leads.LeadMention", b =>
                 {
                     b.HasOne("CourseCenter.Api.Leads.LeadNote", "LeadNote")
@@ -1229,25 +995,6 @@ namespace CourseCenter.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("LeadNote");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadMessage", b =>
-                {
-                    b.HasOne("User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CourseCenter.Api.Leads.Lead", "Lead")
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("Lead");
                 });
 
             modelBuilder.Entity("CourseCenter.Api.Leads.LeadNote", b =>
@@ -1267,78 +1014,6 @@ namespace CourseCenter.Api.Migrations
                     b.HasOne("CourseCenter.Api.Leads.Lead", null)
                         .WithMany("Notes")
                         .HasForeignKey("LeadId1");
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("Lead");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadStageHistory", b =>
-                {
-                    b.HasOne("User", "ChangedByUser")
-                        .WithMany()
-                        .HasForeignKey("ChangedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CourseCenter.Api.Leads.LeadStage", "FromStage")
-                        .WithMany()
-                        .HasForeignKey("FromStageId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CourseCenter.Api.Leads.Lead", "Lead")
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CourseCenter.Api.Leads.LeadStage", "ToStage")
-                        .WithMany()
-                        .HasForeignKey("ToStageId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ChangedByUser");
-
-                    b.Navigation("FromStage");
-
-                    b.Navigation("Lead");
-
-                    b.Navigation("ToStage");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadTagLink", b =>
-                {
-                    b.HasOne("CourseCenter.Api.Leads.Lead", "Lead")
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CourseCenter.Api.Leads.LeadTag", "Tag")
-                        .WithMany()
-                        .HasForeignKey("TagId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Lead");
-
-                    b.Navigation("Tag");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadTask", b =>
-                {
-                    b.HasOne("User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CourseCenter.Api.Leads.Lead", "Lead")
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("CreatedByUser");
 

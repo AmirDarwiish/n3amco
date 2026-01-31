@@ -10,6 +10,10 @@
         public string Source { get; set; }
         public string AssignedTo { get; set; }
         public DateTime CreatedAt { get; set; }
+        // Derived CRM insights (read-only)
+        public DateTime? LastInteractionDate { get; set; }
+        public string? LastInteractionType { get; set; }
+        public bool HasComplaint { get; set; }
     }
 
 }

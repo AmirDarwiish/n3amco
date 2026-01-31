@@ -35,6 +35,14 @@ namespace CourseCenter.Api
         public DbSet<Enrollment> Enrollments { get; set; }
         public DbSet<Lead> Leads { get; set; }
         public DbSet<LeadNote> LeadNotes { get; set; }
+        public DbSet<LeadStage> LeadStages { get; set; }
+        public DbSet<LeadStageHistory> LeadStageHistory { get; set; }
+        public DbSet<LeadCall> LeadCalls { get; set; }
+        public DbSet<LeadMessage> LeadMessages { get; set; }
+        public DbSet<LeadTask> LeadTasks { get; set; }
+        public DbSet<LeadTag> LeadTags { get; set; }
+        public DbSet<LeadTagLink> LeadTagLinks { get; set; }
+        public DbSet<LeadMention> LeadMentions { get; set; }
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
@@ -87,13 +95,68 @@ namespace CourseCenter.Api
                 .HasOne(n => n.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(n => n.CreatedByUserId);
+            modelBuilder.Entity<LeadStageHistory>()
+                .HasOne(h => h.Lead)
+                .WithMany()
+                .HasForeignKey(h => h.LeadId);
+
+            modelBuilder.Entity<LeadStageHistory>()
+                .HasOne(h => h.FromStage)
+                .WithMany()
+                .HasForeignKey(h => h.FromStageId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LeadStageHistory>()
+                .HasOne(h => h.ToStage)
+                .WithMany()
+                .HasForeignKey(h => h.ToStageId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LeadCall>()
+                .HasOne(c => c.Lead)
+                .WithMany()
+                .HasForeignKey(c => c.LeadId);
+
+            modelBuilder.Entity<LeadMessage>()
+                .HasOne(m => m.Lead)
+                .WithMany()
+                .HasForeignKey(m => m.LeadId);
+
+            modelBuilder.Entity<LeadTask>()
+                .HasOne(t => t.Lead)
+                .WithMany()
+                .HasForeignKey(t => t.LeadId);
+
+            modelBuilder.Entity<LeadTagLink>()
+                .HasKey(lt => new { lt.LeadId, lt.TagId });
+
+            modelBuilder.Entity<LeadTagLink>()
+                .HasOne(lt => lt.Lead)
+                .WithMany()
+                .HasForeignKey(lt => lt.LeadId);
+
+            modelBuilder.Entity<LeadTagLink>()
+                .HasOne(lt => lt.Tag)
+                .WithMany()
+                .HasForeignKey(lt => lt.TagId);
+            modelBuilder.Entity<LeadMention>()
+                .HasOne(m => m.LeadNote)
+                .WithMany()
+                .HasForeignKey(m => m.LeadNoteId);
             modelBuilder.Entity<AssessmentAnswer>()
                 .HasOne(a => a.Question)
                 .WithMany(q => q.Answers)
                 .HasForeignKey(a => a.QuestionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Lead>()
+               .HasQueryFilter(l => !l.IsArchived);
+
+            base.OnModelCreating(modelBuilder);
+
         }
+       
+
 
     }
 }

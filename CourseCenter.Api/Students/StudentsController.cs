@@ -102,6 +102,20 @@ namespace CourseCenter.Api.Students
         [Authorize(Policy = "STUDENTS_CREATE")]
         public IActionResult Create(CreateStudentRequest request)
         {
+            // 🔒 Minimal validation – no response change
+            if (string.IsNullOrWhiteSpace(request.FullName))
+                return BadRequest("Full name is required");
+
+            // 🔁 Prevent duplicates
+            var exists = _context.Students.Any(s =>
+                (!string.IsNullOrEmpty(request.Email) && s.Email == request.Email) ||
+                (!string.IsNullOrEmpty(request.PhoneNumber) && s.PhoneNumber == request.PhoneNumber) ||
+                (!string.IsNullOrEmpty(request.NationalId) && s.NationalId == request.NationalId)
+            );
+
+            if (exists)
+                return BadRequest("Student already exists");
+
             var student = new Student
             {
                 FullName = request.FullName,
@@ -126,6 +140,48 @@ namespace CourseCenter.Api.Students
         }
 
         // =========================
+        // PUT: api/Students/{id}
+        // =========================
+        [HttpPut("{id:int}")]
+        [Authorize(Policy = "STUDENTS_EDIT")]
+        public IActionResult Update(int id, UpdateStudentRequest request)
+        {
+            var student = _context.Students.FirstOrDefault(s => s.Id == id);
+            if (student == null)
+                return NotFound("Student not found");
+
+            // 🔁 Prevent duplicates (exclude current student)
+            var duplicate = _context.Students.Any(s =>
+                s.Id != id &&
+                (
+                    (!string.IsNullOrEmpty(request.Email) && s.Email == request.Email) ||
+                    (!string.IsNullOrEmpty(request.PhoneNumber) && s.PhoneNumber == request.PhoneNumber) ||
+                    (!string.IsNullOrEmpty(request.NationalId) && s.NationalId == request.NationalId)
+                )
+            );
+
+            if (duplicate)
+                return BadRequest("Student already exists");
+
+            student.FullName = request.FullName;
+            student.Email = request.Email;
+            student.PhoneNumber = request.PhoneNumber;
+            student.NationalId = request.NationalId;
+            student.Gender = request.Gender;
+
+            if (request.DateOfBirth.HasValue)
+                student.DateOfBirth = request.DateOfBirth.Value;
+
+            student.RelativeName = request.RelativeName;
+            student.ParentPhoneNumber = request.ParentPhoneNumber;
+            student.Level = request.Level;
+
+            _context.SaveChanges();
+
+            return Ok(student);
+        }
+
+        // =========================
         // DELETE: api/Students/{id}
         // =========================
         [HttpDelete("{id:int}")]
@@ -136,19 +192,16 @@ namespace CourseCenter.Api.Students
 
             try
             {
-                // 1️⃣ Check student exists
                 var student = _context.Students.FirstOrDefault(s => s.Id == id);
                 if (student == null)
                     return NotFound("Student not found");
 
-                // 2️⃣ Business rule: active enrollments
                 var hasActiveEnrollments = _context.Enrollments
                     .Any(e => e.StudentId == id && e.Status != EnrollmentStatus.Completed);
 
                 if (hasActiveEnrollments)
                     return BadRequest("Cannot archive student with active enrollments");
 
-                // 3️⃣ Copy to archive
                 var archived = new ArchivedStudent
                 {
                     OriginalStudentId = student.Id,
@@ -165,12 +218,10 @@ namespace CourseCenter.Api.Students
 
                     CreatedAt = student.CreatedAt,
                     ArchivedAt = DateTime.UtcNow,
-                    ArchivedByUserId = 1 // TODO: get from token
+                    ArchivedByUserId = 1 // TODO: from token
                 };
 
                 _context.ArchivedStudents.Add(archived);
-
-                // 4️⃣ Remove from active table
                 _context.Students.Remove(student);
 
                 _context.SaveChanges();
@@ -244,40 +295,5 @@ namespace CourseCenter.Api.Students
 
             return Ok("Student restored successfully");
         }
-        // =========================
-        // PUT: api/Students/{id}
-        // =========================
-        [HttpPut("{id:int}")]
-        [Authorize(Policy = "STUDENTS_EDIT")]
-        public IActionResult Update(int id, UpdateStudentRequest request)
-        {
-            // 1️⃣ Check student exists
-            var student = _context.Students.FirstOrDefault(s => s.Id == id);
-            if (student == null)
-                return NotFound("Student not found");
-
-            // 2️⃣ Update allowed fields
-            student.FullName = request.FullName;
-            student.Email = request.Email;
-            student.PhoneNumber = request.PhoneNumber;
-            student.NationalId = request.NationalId;
-            student.Gender = request.Gender;
-            if (request.DateOfBirth.HasValue)
-            {
-                student.DateOfBirth = request.DateOfBirth.Value;
-            }
-
-            student.RelativeName = request.RelativeName;
-            student.ParentPhoneNumber = request.ParentPhoneNumber;
-            student.Level = request.Level;
-
-            // 3️⃣ Save
-            _context.SaveChanges();
-
-            return Ok(student);
-        }
-
-
     }
-
 }

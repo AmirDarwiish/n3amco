@@ -2,6 +2,7 @@
 using CourseCenter.Api.Users.Roles;
 using Microsoft.AspNetCore.Identity;
 using CourseCenter.Api.Categories;
+using CourseCenter.Api.Leads;
 
 
 namespace CourseCenter.Api
@@ -55,6 +56,21 @@ namespace CourseCenter.Api
                     new Category { Name = "Design" },
                     new Category { Name = "Marketing" },
                     new Category { Name = "Data" }
+                );
+
+                context.SaveChanges();
+            }
+
+            // Seed default lead stages if missing
+            if (!context.LeadStages.Any())
+            {
+                context.LeadStages.AddRange(
+                    new LeadStage { Name = "New", Order = 1, IsFinal = false, IsWon = false, IsLost = false },
+                    new LeadStage { Name = "Contacted", Order = 2, IsFinal = false, IsWon = false, IsLost = false },
+                    new LeadStage { Name = "Qualified", Order = 3, IsFinal = false, IsWon = false, IsLost = false },
+                    new LeadStage { Name = "Proposal", Order = 4, IsFinal = false, IsWon = false, IsLost = false },
+                    new LeadStage { Name = "Won", Order = 5, IsFinal = true, IsWon = true, IsLost = false },
+                    new LeadStage { Name = "Lost", Order = 6, IsFinal = true, IsWon = false, IsLost = true }
                 );
 
                 context.SaveChanges();

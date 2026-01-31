@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using CourseCenter.Api.Leads.DTOs;
+using System.Text.RegularExpressions;
 
 
 namespace CourseCenter.Api.Controllers
@@ -91,6 +93,32 @@ public class LeadsController : ControllerBase
                 })
                 .ToList();
 
+            // Add derived CRM fields for single lead case as well (used in GetById)
+
+            // Compute derived CRM fields from notes
+            var leadIds = data.Select(d => d.Id).ToList();
+            var notes = _context.LeadNotes
+                .Where(n => leadIds.Contains(n.LeadId))
+                .Select(n => new { n.LeadId, n.CreatedAt, n.InteractionType })
+                .ToList()
+                .GroupBy(n => n.LeadId)
+                .ToDictionary(g => g.Key, g => new
+                {
+                    LastDate = g.Max(x => x.CreatedAt),
+                    LastType = g.OrderByDescending(x => x.CreatedAt).First().InteractionType,
+                    HasComplaint = g.Any(x => x.InteractionType == LeadInteractionType.Complaint)
+                });
+
+            foreach (var item in data)
+            {
+                if (notes.TryGetValue(item.Id, out var n))
+                {
+                    item.LastInteractionDate = n.LastDate;
+                    item.LastInteractionType = n.LastType.ToString();
+                    item.HasComplaint = n.HasComplaint;
+                }
+            }
+
             var response = new PagedResponse<LeadListDto>
             {
                 Data = data,
@@ -102,6 +130,398 @@ public class LeadsController : ControllerBase
             return Ok(response);
         }
 
+        // GET: api/leads/{id}/details
+        [HttpGet("{id}/details")]
+        [Authorize(Policy = "LEADS_VIEW")]
+        public IActionResult GetDetails(
+            int id,
+            [FromQuery] int timelinePage = 1,
+            [FromQuery] int timelineSize = 50)
+        {
+            try
+            {
+                // =============================
+                // 1️⃣ Lead basic info (NO tracking)
+                // =============================
+                var lead = _context.Leads
+                    .AsNoTracking() // 🔥 مهم جدًا
+                    .Where(l => l.Id == id)
+                    .Select(l => new
+                    {
+                        l.Id,
+                        l.FullName,
+                        l.Phone,
+                        l.Email,
+                        l.Source,
+                        l.Status,
+                        l.LostReason,
+                        l.CreatedAt,
+                        AssignedUser = l.AssignedUser == null
+                            ? null
+                            : new AssignedUserDto
+                            {
+                                Id = l.AssignedUser.Id,
+                                FullName = l.AssignedUser.FullName
+                            }
+                    })
+                    .FirstOrDefault();
+
+                if (lead == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Lead not found"
+                    });
+                }
+
+                // 🔥 Guard حاسم: ممنوع Status = 0
+                if ((int)lead.Status == 0)
+                {
+                    return Problem(
+                        title: "Invalid lead status",
+                        detail: "This lead has an invalid status (0). Please refresh or contact support.",
+                        statusCode: StatusCodes.Status409Conflict
+                    );
+                }
+
+                // =============================
+                // 2️⃣ Build base DTO
+                // =============================
+                var dto = new LeadDetailsDto
+                {
+                    LeadInfo = new LeadInfoDto
+                    {
+                        Id = lead.Id,
+                        Name = lead.FullName,
+                        Phone = lead.Phone,
+                        Email = lead.Email,
+                        Source = lead.Source,
+                        AssignedUser = lead.AssignedUser,
+                        LostReason = lead.Status == LeadStatus.Lost
+                        ? lead.LostReason
+        : null
+                    }
+,
+                    CurrentStage = new StageDto
+                    {
+                        Id = (int)lead.Status,
+                        Name = lead.Status.ToString(),
+                        Order = (int)lead.Status
+                    }
+                };
+
+                // =============================
+                // 3️⃣ All stages (NO zero)
+                // =============================
+                dto.AllStages = Enum.GetValues(typeof(LeadStatus))
+                    .Cast<LeadStatus>()
+                    .Where(s => (int)s > 0) // 🔒 امنع stage 0
+                    .Select(s => new StageDto
+                    {
+                        Id = (int)s,
+                        Name = s.ToString(),
+                        Order = (int)s
+                    })
+                    .OrderBy(s => s.Order)
+                    .ToList();
+
+                // =============================
+                // 4️⃣ Stage history
+                // =============================
+                var persistentHistory = _context.LeadStageHistory
+                    .AsNoTracking()
+                    .Where(h => h.LeadId == id)
+                    .OrderByDescending(h => h.ChangedAt)
+                    .Select(h => new StageHistoryDto
+                    {
+                        FromStage = h.FromStage != null ? h.FromStage.Name : null,
+                        ToStage = h.ToStage != null ? h.ToStage.Name : null,
+                        ChangedAt = h.ChangedAt,
+                        ChangedBy = h.ChangedByUserId,
+                        ChangedByName = h.ChangedByUser.FullName
+                    })
+                    .ToList();
+
+                if (persistentHistory.Any())
+                {
+                    dto.StageHistory = persistentHistory;
+                }
+                else
+                {
+                    dto.StageHistory = _context.LeadNotes
+                        .AsNoTracking()
+                        .Where(n => n.LeadId == id &&
+                                    EF.Functions.Like(n.Note, "%Stage changed%"))
+                        .OrderByDescending(n => n.CreatedAt)
+                        .Select(n => new StageHistoryDto
+                        {
+                            FromStage = null,
+                            ToStage = n.Note,
+                            ChangedAt = n.CreatedAt,
+                            ChangedBy = n.CreatedByUserId,
+                            ChangedByName = n.CreatedByUser.FullName
+                        })
+                        .ToList();
+                }
+
+                // =============================
+                // 5️⃣ Activity Timeline (EF-safe)
+                // =============================
+                var notesQ = _context.LeadNotes
+                    .AsNoTracking()
+                    .Where(n => n.LeadId == id)
+                    .Select(n => new
+                    {
+                        Type = "Note",
+                        Description = n.Note,
+                        CreatedAt = n.CreatedAt,
+                        CreatedBy = n.CreatedByUserId,
+                        CreatedByName = n.CreatedByUser.FullName,
+                        InteractionType = (LeadInteractionType?)n.InteractionType
+                    });
+
+                var callsQ = _context.LeadCalls
+                    .AsNoTracking()
+                    .Where(c => c.LeadId == id)
+                    .Select(c => new
+                    {
+                        Type = "Call",
+                        Description = c.Notes,
+                        CreatedAt = c.CreatedAt,
+                        CreatedBy = c.CreatedByUserId,
+                        CreatedByName = c.CreatedByUser.FullName,
+                        InteractionType = (LeadInteractionType?)null
+                    });
+
+                var messagesQ = _context.LeadMessages
+                    .AsNoTracking()
+                    .Where(m => m.LeadId == id)
+                    .Select(m => new
+                    {
+                        Type = "Message",
+                        Description = m.MessagePreview,
+                        CreatedAt = m.CreatedAt,
+                        CreatedBy = m.CreatedByUserId,
+                        CreatedByName = m.CreatedByUser.FullName,
+                        InteractionType = (LeadInteractionType?)null
+                    });
+
+                var tasksQ = _context.LeadTasks
+                    .AsNoTracking()
+                    .Where(t => t.LeadId == id)
+                    .Select(t => new
+                    {
+                        Type = "Task",
+                        Description = t.Title,
+                        CreatedAt = t.CreatedAt,
+                        CreatedBy = t.CreatedByUserId,
+                        CreatedByName = t.CreatedByUser.FullName,
+                        InteractionType = (LeadInteractionType?)null
+                    });
+
+                var timelineRaw = notesQ
+                    .Concat(callsQ)
+                    .Concat(messagesQ)
+                    .Concat(tasksQ)
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Skip((timelinePage - 1) * timelineSize)
+                    .Take(timelineSize)
+                    .AsEnumerable();
+
+                dto.ActivityTimeline = timelineRaw
+                    .Select(x => new ActivityDto
+                    {
+                        Type = x.Type,
+                        Description = x.Description,
+                        CreatedAt = x.CreatedAt,
+                        CreatedBy = x.CreatedBy,
+                        CreatedByName = x.CreatedByName,
+                        InteractionType = x.InteractionType?.ToString()
+                    })
+                    .ToList();
+
+                // =============================
+                // 6️⃣ Metrics
+                // =============================
+                dto.Metrics = new MetricsDto
+                {
+                    DaysInPipeline = (DateTime.UtcNow - lead.CreatedAt).TotalDays,
+                    LastActivityAt = _context.LeadNotes
+                        .AsNoTracking()
+                        .Where(n => n.LeadId == id)
+                        .OrderByDescending(n => n.CreatedAt)
+                        .Select(n => (DateTime?)n.CreatedAt)
+                        .FirstOrDefault()
+                };
+
+                return Ok(dto);
+            }
+            catch (DbUpdateException)
+            {
+                // Database / constraint issues
+                return Problem(
+                    title: "Database error",
+                    detail: "A database error occurred while loading lead details.",
+                    statusCode: StatusCodes.Status500InternalServerError
+                );
+            }
+            catch (Exception ex)
+            {
+                // أي حاجة غير متوقعة
+                return Problem(
+                    title: "Unexpected error",
+                    detail: ex.Message,
+                    statusCode: StatusCodes.Status500InternalServerError
+                );
+            }
+        }
+
+
+        // GET: api/leads/pipeline
+        [HttpGet("pipeline")]
+        [Authorize(Policy = "LEADS_VIEW")]
+        public IActionResult GetPipeline(
+     [FromQuery] LeadStatus? stage,
+     [FromQuery] int? assignedUserId,
+     [FromQuery] int? recentActivityDays)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+                var canViewAll = _authorizationService
+                    .AuthorizeAsync(User, "LEADS_VIEW_ALL")
+                    .GetAwaiter()
+                    .GetResult()
+                    .Succeeded;
+
+                // =========================
+                // 0️⃣ Defensive check (TEMP – for debugging)
+                // =========================
+                if (_context.Leads.AsNoTracking().Any(l => l.Status == 0))
+                {
+                    return Problem(
+                        title: "Invalid lead data detected",
+                        detail: "Some leads have invalid status (0). Please contact support.",
+                        statusCode: StatusCodes.Status500InternalServerError
+                    );
+                }
+
+                // =========================
+                // 1️⃣ Base query (NO tracking)
+                // =========================
+                var query = _context.Leads
+                    .AsNoTracking()                 // 🔥 يمنع EF tracking نهائي
+                    .Include(l => l.AssignedUser)
+                    .Where(l => l.Status != 0)      // 🔒 guard
+                    .AsQueryable();
+
+                if (!canViewAll)
+                    query = query.Where(l => l.AssignedUserId == userId);
+
+                if (stage.HasValue)
+                    query = query.Where(l => l.Status == stage.Value);
+
+                if (assignedUserId.HasValue)
+                    query = query.Where(l => l.AssignedUserId == assignedUserId.Value);
+
+                if (recentActivityDays.HasValue)
+                {
+                    var since = DateTime.UtcNow.AddDays(-recentActivityDays.Value);
+                    var activeLeadIds = _context.LeadNotes
+                        .AsNoTracking()
+                        .Where(n => n.CreatedAt >= since)
+                        .Select(n => n.LeadId)
+                        .Distinct();
+
+                    query = query.Where(l => activeLeadIds.Contains(l.Id));
+                }
+
+                // =========================
+                // 2️⃣ Projection
+                // =========================
+                var leads = query
+                    .Select(l => new
+                    {
+                        l.Id,
+                        l.FullName,
+                        l.Status,
+                        AssignedUser = l.AssignedUser == null
+                            ? null
+                            : new AssignedUserDto
+                            {
+                                Id = l.AssignedUser.Id,
+                                FullName = l.AssignedUser.FullName
+                            }
+                    })
+                    .ToList();
+
+                // =========================
+                // 3️⃣ Last activity lookup
+                // =========================
+                var leadIds = leads.Select(l => l.Id).ToList();
+
+                var lastActivities = _context.LeadNotes
+                    .AsNoTracking()
+                    .Where(n => leadIds.Contains(n.LeadId))
+                    .GroupBy(n => n.LeadId)
+                    .Select(g => new
+                    {
+                        LeadId = g.Key,
+                        LastAt = g.Max(x => x.CreatedAt),
+                        LastType = g.OrderByDescending(x => x.CreatedAt)
+                                    .First().InteractionType
+                    })
+                    .ToDictionary(x => x.LeadId);
+
+                // =========================
+                // 4️⃣ Grouping
+                // =========================
+                var grouped = leads
+                    .GroupBy(l => l.Status)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                // =========================
+                // 5️⃣ Build pipeline (ALL stages)
+                // =========================
+                var pipeline = Enum.GetValues(typeof(LeadStatus))
+                    .Cast<LeadStatus>()
+                    .Where(s => (int)s > 0)
+                    .OrderBy(s => (int)s)
+                    .Select(s => new PipelineStageDto
+                    {
+                        StageId = (int)s,
+                        StageName = s.ToString(),
+                        TotalLeads = grouped.ContainsKey(s) ? grouped[s].Count : 0,
+                        Leads = grouped.ContainsKey(s)
+                            ? grouped[s].Select(l => new PipelineLeadDto
+                            {
+                                Id = l.Id,
+                                Name = l.FullName,
+                                AssignedUser = l.AssignedUser,
+                                LastActivityAt = lastActivities.ContainsKey(l.Id)
+                                    ? lastActivities[l.Id].LastAt
+                                    : null,
+                                LastActivityType = lastActivities.ContainsKey(l.Id)
+                                    ? lastActivities[l.Id].LastType.ToString()
+                                    : null
+                            }).ToList()
+                            : new List<PipelineLeadDto>()
+                    })
+                    .ToList();
+
+                return Ok(pipeline);
+            }
+            catch (Exception ex)
+            {
+                // أي حاجة غير متوقعة
+                return Problem(
+                    title: "Failed to load leads pipeline",
+                    detail: ex.Message,
+                    statusCode: StatusCodes.Status500InternalServerError
+                );
+            }
+        }
 
         // =====================
         // POST: api/leads
@@ -154,22 +574,79 @@ public class LeadsController : ControllerBase
         // =====================
         [HttpPut("{id}/status")]
         [Authorize(Policy = "LEADS_EDIT")]
-        public IActionResult UpdateStatus(int id, LeadStatus status)
+        public IActionResult UpdateStatus(int id, [FromBody] UpdateLeadStatusDto dto)
         {
-            var lead = _context.Leads.FirstOrDefault(l => l.Id == id);
-            if (lead == null)
-                return NotFound();
+            try
+            {
+                if (dto == null)
+                    return BadRequest("Invalid request body");
 
-            lead.Status = status;
-            _context.SaveChanges();
+                if ((int)dto.Status == 0)
+                    return BadRequest("Invalid lead status");
 
-            return Ok("Lead status updated");
+                var lead = _context.Leads.FirstOrDefault(l => l.Id == id);
+                if (lead == null)
+                    return NotFound("Lead not found");
+
+                var previousStatus = lead.Status;
+
+                // لو Lost لازم يكون في سبب
+             /*   if (dto.Status == LeadStatus.Lost &&
+                    string.IsNullOrWhiteSpace(dto.Reason))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Lost reason is required when status is Lost"
+                    });
+                }
+             */
+                // تحديث الحالة
+                lead.Status = dto.Status;
+
+                // التعامل مع LostReason
+                if (dto.Status == LeadStatus.Lost)
+                {
+                    lead.LostReason = dto.Reason;
+                }
+                else
+                {
+                    // لو خرج من Lost نمسح السبب
+                    lead.LostReason = null;
+                }
+
+                _context.SaveChanges();
+
+                return Ok(new
+                {
+                    message = "Lead status updated",
+                    status = dto.Status.ToString(),
+                    lostReason = lead.LostReason
+                });
+            }
+            catch (DbUpdateException)
+            {
+                return Problem(
+                    title: "Database error",
+                    detail: "Invalid lead status update detected.",
+                    statusCode: StatusCodes.Status409Conflict
+                );
+            }
+            catch (Exception ex)
+            {
+                return Problem(
+                    title: "Unexpected error",
+                    detail: ex.Message,
+                    statusCode: StatusCodes.Status500InternalServerError
+                );
+            }
         }
+
+
 
         // =====================
         // POST: api/leads/{id}/convert
         // =====================
-       [Authorize(Policy = "LEADS_CONVERT")]
+        [Authorize(Policy = "LEADS_CONVERT")]
         [HttpPost("{id}/convert")]
         public IActionResult Convert(int id, ConvertLeadDto dto)
         {
@@ -291,11 +768,89 @@ public class LeadsController : ControllerBase
             {
                 LeadId = id,
                 Note = dto.Note,
+                InteractionType = dto.InteractionType ?? LeadInteractionType.GeneralNote,
                 CreatedByUserId = userId
             };
 
             _context.LeadNotes.Add(note);
             _context.SaveChanges();
+
+            // Process mentions (side-effect): detect @username patterns and create LeadMention entries
+            try
+            {
+                var matches = Regex.Matches(dto.Note ?? string.Empty, @"@([A-Za-z0-9_\.\-]+)");
+                var handles = matches.Select(m => m.Groups[1].Value.Trim())
+                    .Where(h => !string.IsNullOrEmpty(h))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (handles.Any())
+                {
+                    // fetch candidate users (active)
+                    var candidates = _context.Users
+                        .Where(u => u.IsActive)
+                        .ToList();
+
+                    var leadEntity = _context.Leads.FirstOrDefault(l => l.Id == id);
+
+                    var mentionsToAdd = new List<LeadMention>();
+
+                    foreach (var handle in handles)
+                    {
+                        // Resolve by email local-part or full name (best-effort)
+                        var matched = candidates.FirstOrDefault(u =>
+                            string.Equals(u.Email.Split('@')[0], handle, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(u.FullName.Replace(" ", ""), handle, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(u.FullName, handle, StringComparison.OrdinalIgnoreCase)
+                        );
+
+                        if (matched == null)
+                            continue; // do not leak info
+
+                        // Check if matched user can view the lead (permission-aware)
+                        var roles = _context.UserRoles
+                            .Where(ur => ur.UserId == matched.Id)
+                            .Include(ur => ur.Role)
+                            .Select(ur => ur.Role.Name)
+                            .ToList();
+
+                        var hasViewAll = _context.RolePermissions
+                            .Any(rp => roles.Contains(rp.Role) && rp.Permission.Code == "LEADS_VIEW_ALL");
+
+                        var canView = false;
+                        if (hasViewAll)
+                            canView = true;
+                        else if (leadEntity != null && leadEntity.AssignedUserId.HasValue && leadEntity.AssignedUserId.Value == matched.Id)
+                            canView = true;
+
+                        if (!canView)
+                            continue;
+
+                        // avoid duplicate mentions for same note and user
+                        var existsMention = _context.LeadMentions.Any(m => m.LeadNoteId == note.Id && m.MentionedUserId == matched.Id);
+                        if (existsMention)
+                            continue;
+
+                        mentionsToAdd.Add(new LeadMention
+                        {
+                            LeadNoteId = note.Id,
+                            MentionedUserId = matched.Id,
+                            MentionedByUserId = userId,
+                            CreatedAt = DateTime.UtcNow,
+                            IsRead = false
+                        });
+                    }
+                    if (mentionsToAdd.Any())
+                    {
+                        _context.LeadMentions.AddRange(mentionsToAdd);
+                        _context.SaveChanges();
+                    }
+                }
+            }
+            catch
+            {
+                // ignore mention processing errors to avoid impacting primary flow
+            }
 
             return Ok("Note added");
         }
@@ -310,6 +865,7 @@ public class LeadsController : ControllerBase
                 .Select(n => new
                 {
                     n.Note,
+                    InteractionType = n.InteractionType.ToString(),
                     CreatedBy = n.CreatedByUser.FullName,
                     n.CreatedAt
                 })
@@ -695,8 +1251,11 @@ public class LeadsController : ControllerBase
             var note = _context.LeadNotes.FirstOrDefault(n => n.Id == noteId);
             if (note == null)
                 return NotFound("Note not found");
-
             note.Note = dto.Note;
+            if (dto.InteractionType.HasValue)
+            {
+                note.InteractionType = dto.InteractionType.Value;
+            }
             _context.SaveChanges();
 
             return Ok("Note updated successfully");
@@ -748,6 +1307,95 @@ public class LeadsController : ControllerBase
             _context.SaveChanges();
 
             return Ok("Source updated");
+        }
+        [HttpPost("{id}/tasks")]
+        [Authorize(Policy = "LEADS_TASKS_CREATE")]
+        public IActionResult AddTask(int id, CreateLeadTaskDto dto)
+        {
+            var lead = _context.Leads.FirstOrDefault(l => l.Id == id);
+            if (lead == null)
+                return NotFound("Lead not found");
+
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest("Task title is required");
+
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            var task = new LeadTask
+            {
+                LeadId = id,
+                Title = dto.Title,
+                DueDate = dto.DueDate,
+                CreatedByUserId = userId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.LeadTasks.Add(task);
+            _context.SaveChanges();
+
+            return Ok("Task added");
+        }
+        [HttpPut("{id}/archive")]
+        [Authorize(Policy = "LEADS_DELETE")] // أو LEADS_ARCHIVE
+        public IActionResult Archive(int id)
+        {
+            var lead = _context.Leads.FirstOrDefault(l => l.Id == id);
+            if (lead == null)
+                return NotFound("Lead not found");
+
+            if (lead.IsArchived)
+                return BadRequest("Lead already archived");
+
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            lead.IsArchived = true;
+            lead.ArchivedAt = DateTime.UtcNow;
+            lead.ArchivedByUserId = userId;
+
+            _context.SaveChanges();
+
+            return Ok("Lead archived successfully");
+        }
+        [HttpPut("{id}/restore")]
+        [Authorize(Policy = "LEADS_DELETE")]
+        public IActionResult Restore(int id)
+        {
+            var lead = _context.Leads
+                .IgnoreQueryFilters() // 🔥 مهم
+                .FirstOrDefault(l => l.Id == id);
+
+            if (lead == null)
+                return NotFound("Lead not found");
+
+            if (!lead.IsArchived)
+                return BadRequest("Lead is not archived");
+
+            lead.IsArchived = false;
+            lead.ArchivedAt = null;
+            lead.ArchivedByUserId = null;
+
+            _context.SaveChanges();
+
+            return Ok("Lead restored successfully");
+        }
+        [HttpGet("archived")]
+        [Authorize(Policy = "LEADS_VIEW")]
+        public IActionResult GetArchived()
+        {
+            var leads = _context.Leads
+                .IgnoreQueryFilters()
+                .Where(l => l.IsArchived)
+                .Select(l => new
+                {
+                    l.Id,
+                    l.FullName,
+                    l.Phone,
+                    l.Status,
+                    l.ArchivedAt
+                })
+                .ToList();
+
+            return Ok(leads);
         }
 
 
