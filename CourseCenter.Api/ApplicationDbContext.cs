@@ -2,6 +2,7 @@
 using CourseCenter.Api.Categories;
 using CourseCenter.Api.Courseclasses;
 using CourseCenter.Api.Courses;
+using CourseCenter.Api.CustomerHistory;
 using CourseCenter.Api.Enrollments;
 using CourseCenter.Api.Leads;
 using CourseCenter.Api.Payments;
@@ -60,6 +61,7 @@ namespace CourseCenter.Api
         public DbSet<ArchivedCourseClass> ArchivedCourseClasses { get; set; }
         public DbSet<UserActivityLog> UserActivityLogs { get; set; }
         public DbSet<LeadFollowUpLog> LeadFollowUpLogs { get; set; } = null!;
+        public DbSet<CustomerHistory> CustomerHistories { get; set; }
 
 
 
@@ -153,6 +155,19 @@ namespace CourseCenter.Api
 
             modelBuilder.Entity<Lead>()
                .HasQueryFilter(l => !l.IsArchived);
+
+            modelBuilder.Entity<CustomerHistory>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(history => history.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CustomerHistory>()
+                .Property(history => history.CreatedAt)
+                .HasDefaultValueSql("GETUTCDATE()");
+
+            modelBuilder.Entity<CustomerHistory>()
+                .HasIndex(history => new { history.CustomerId, history.CreatedAt });
 
             base.OnModelCreating(modelBuilder);
 
