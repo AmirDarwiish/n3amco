@@ -4,6 +4,7 @@ using CourseCenter.Api;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CourseCenter.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260131081510_user_logs")]
+    partial class user_logs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -592,42 +595,6 @@ namespace CourseCenter.Api.Migrations
                     b.HasIndex("LeadId");
 
                     b.ToTable("LeadCalls");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadFollowUpLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CreatedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FollowUpDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("LeadId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Source")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("LeadId");
-
-                    b.ToTable("LeadFollowUpLogs");
                 });
 
             modelBuilder.Entity("CourseCenter.Api.Leads.LeadMention", b =>
@@ -1270,25 +1237,6 @@ namespace CourseCenter.Api.Migrations
                 });
 
             modelBuilder.Entity("CourseCenter.Api.Leads.LeadCall", b =>
-                {
-                    b.HasOne("User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CourseCenter.Api.Leads.Lead", "Lead")
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("Lead");
-                });
-
-            modelBuilder.Entity("CourseCenter.Api.Leads.LeadFollowUpLog", b =>
                 {
                     b.HasOne("User", "CreatedByUser")
                         .WithMany()

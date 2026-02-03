@@ -58,6 +58,8 @@ namespace CourseCenter.Api
         public DbSet<AssessmentAttemptAnswer> AssessmentAttemptAnswers { get; set; }
         public DbSet<CourseClass> CourseClasses { get; set; }
         public DbSet<ArchivedCourseClass> ArchivedCourseClasses { get; set; }
+        public DbSet<UserActivityLog> UserActivityLogs { get; set; }
+        public DbSet<LeadFollowUpLog> LeadFollowUpLogs { get; set; } = null!;
 
 
 

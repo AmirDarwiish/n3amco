@@ -1,7 +1,9 @@
 ﻿using CourseCenter.Api;
 using CourseCenter.Api.Assessment.Services;
 using CourseCenter.Api.Users.Authorization;
+using CourseCenter.Api.Users.Filters;
 using CourseCenter.Api.Users.Permissions;
+using CourseCenter.Api.Users.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +18,10 @@ var builder = WebApplication.CreateBuilder(args);
 // =========================
 
 // Controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<UserActivityLogFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -79,6 +84,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.CommandTimeout(300) // 5 minutes
     ));
+builder.Services.AddScoped<IUserActivityLogger, UserActivityLogger>();
+
 
 // =========================
 // 4️⃣ Authentication (JWT)
@@ -134,6 +141,8 @@ builder.Services.AddAuthorization(options =>
 
 // keep the dynamic permission policy provider for other permissions
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IUserActivityLogger, UserActivityLogger>();
+
 
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();

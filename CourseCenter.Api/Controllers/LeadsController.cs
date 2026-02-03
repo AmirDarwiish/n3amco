@@ -898,12 +898,26 @@ public class LeadsController : ControllerBase
             if (lead == null)
                 return NotFound("Lead not found");
 
-            lead.FollowUpDate = dto.FollowUpDate;
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            // 1️⃣ Update current Follow-Up (زي ما هو)
+            lead.FollowUpDate = dto.FollowUpDate.Date;
             lead.FollowUpReason = dto.Reason;
+
+            // 2️⃣ Log (History)
+            _context.LeadFollowUpLogs.Add(new LeadFollowUpLog
+            {
+                LeadId = id,
+                FollowUpDate = dto.FollowUpDate.Date,
+                Reason = dto.Reason ?? "Manual follow-up",
+                Source = FollowUpSource.Manual,
+                CreatedByUserId = userId,
+                CreatedAt = DateTime.UtcNow
+            });
 
             _context.SaveChanges();
 
-            // ✅ نرجّع object مش string
+            // ❗ Response زي ما هو
             return Ok(new LeadFollowUpDto
             {
                 LeadId = lead.Id,
@@ -911,111 +925,61 @@ public class LeadsController : ControllerBase
                 FollowUpReason = lead.FollowUpReason
             });
         }
-        [HttpGet("{id}/follow-up")]
+
+
+        [HttpGet("follow-ups")]
         [Authorize(Policy = "LEADS_VIEW")]
-        public IActionResult GetFollowUp(int id)
-        {
-            var followUp = _context.Leads
-                .Where(l => l.Id == id)
-                .Select(l => new LeadFollowUpDto
-                {
-                    LeadId = l.Id,
-                    FollowUpDate = l.FollowUpDate,
-                    FollowUpReason = l.FollowUpReason
-                })
-                .FirstOrDefault();
-
-            if (followUp == null)
-                return NotFound("Lead not found");
-
-            return Ok(followUp);
-        }
-
-
-        [HttpGet("follow-ups/today")]
-        [Authorize(Policy = "LEADS_VIEW")]
-        public IActionResult TodayFollowUps()
+        public IActionResult GetFollowUps(
+            [FromQuery] bool? today,
+            [FromQuery] bool? overdue,
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var isAdmin = User.IsInRole("Admin");
 
-            var today = DateTime.Today;
+            var canViewAll = _authorizationService
+                .AuthorizeAsync(User, "LEADS_VIEW_ALL")
+                .GetAwaiter()
+                .GetResult()
+                .Succeeded;
+
+            var todayDate = DateTime.UtcNow.Date;
 
             var query = _context.Leads
-                .Where(l =>
-                    l.FollowUpDate.HasValue &&
-                    l.FollowUpDate.Value.Date == today
-                );
+                .AsNoTracking()
+                .Where(l => l.FollowUpDate.HasValue);
 
-            if (!isAdmin)
-                query = query.Where(l => l.AssignedUserId == userId);
-
-            var leads = query.Select(l => new
+            // 🔹 Today
+            if (today == true)
             {
-                l.Id,
-                l.FullName,
-                l.Phone,
-                l.Status,
-                l.FollowUpReason
-            }).ToList();
+                query = query.Where(l => l.FollowUpDate!.Value.Date == todayDate);
+            }
 
-            return Ok(leads);
-        }
-        [HttpGet("follow-ups/overdue")]
-        [Authorize(Policy = "LEADS_VIEW")]
-        public IActionResult OverdueFollowUps()
-        {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var isAdmin = User.IsInRole("Admin");
-
-            var today = DateTime.Today;
-
-            var query = _context.Leads
-                .Where(l =>
-                    l.FollowUpDate.HasValue &&
-                    l.FollowUpDate.Value.Date < today &&
+            // 🔹 Overdue
+            if (overdue == true)
+            {
+                query = query.Where(l =>
+                    l.FollowUpDate!.Value.Date < todayDate &&
                     l.Status != LeadStatus.Converted &&
                     l.Status != LeadStatus.Lost
                 );
+            }
 
-            if (!isAdmin)
-                query = query.Where(l => l.AssignedUserId == userId);
-
-            return Ok(query.Select(l => new
+            // 🔹 Range
+            if (from.HasValue)
             {
-                l.Id,
-                l.FullName,
-                l.Phone,
-                l.FollowUpDate
-            }).ToList());
-        }
-        // =====================
-        // GET: api/leads/follow-ups/range
-        // =====================
-        [HttpGet("follow-ups/range")]
-        [Authorize(Policy = "LEADS_VIEW")]
-        public IActionResult FollowUpsByRange(
-            [FromQuery] DateTime from,
-            [FromQuery] DateTime to)
-        {
-            if (from > to)
-                return BadRequest("From date cannot be after To date");
+                var fromDate = from.Value.ToUniversalTime().Date;
+                query = query.Where(l => l.FollowUpDate!.Value.Date >= fromDate);
+            }
 
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var isAdmin = User.IsInRole("Admin");
+            if (to.HasValue)
+            {
+                var toDate = to.Value.ToUniversalTime().Date;
+                query = query.Where(l => l.FollowUpDate!.Value.Date <= toDate);
+            }
 
-            // نخلي المقارنة على مستوى اليوم
-            var fromDate = from.Date;
-            var toDate = to.Date;
-
-            var query = _context.Leads
-                .Where(l =>
-                    l.FollowUpDate.HasValue &&
-                    l.FollowUpDate.Value.Date >= fromDate &&
-                    l.FollowUpDate.Value.Date <= toDate
-                );
-
-            if (!isAdmin)
+            // 🔹 Permissions
+            if (!canViewAll)
             {
                 query = query.Where(l => l.AssignedUserId == userId);
             }
@@ -1035,6 +999,8 @@ public class LeadsController : ControllerBase
 
             return Ok(result);
         }
+
+
         [HttpGet("export")]
         [Authorize(Policy = "LEADS_EXPORT")]
         public IActionResult ExportToExcel([FromQuery] LeadStatus? status)
@@ -1321,20 +1287,49 @@ public class LeadsController : ControllerBase
 
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+            // 1️⃣ Create Task (زي ما هو)
             var task = new LeadTask
             {
                 LeadId = id,
                 Title = dto.Title,
-                DueDate = dto.DueDate,
+                DueDate = dto.DueDate?.Date,
                 CreatedByUserId = userId,
                 CreatedAt = DateTime.UtcNow
             };
 
             _context.LeadTasks.Add(task);
+
+            // 2️⃣ Follow-Up Logic (جديد – Side Effect)
+            if (dto.DueDate.HasValue)
+            {
+                var followUpDate = dto.DueDate.Value.Date;
+
+                // 🔹 Log دايمًا (History)
+                _context.LeadFollowUpLogs.Add(new LeadFollowUpLog
+                {
+                    LeadId = id,
+                    FollowUpDate = followUpDate,
+                    Reason = $"Task: {dto.Title}",
+                    Source = FollowUpSource.Task,
+                    CreatedByUserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // 🔹 Update current Follow-Up (لو أقرب)
+                if (!lead.FollowUpDate.HasValue || followUpDate < lead.FollowUpDate.Value)
+                {
+                    lead.FollowUpDate = followUpDate;
+                    lead.FollowUpReason = $"Task: {dto.Title}";
+                }
+            }
+
             _context.SaveChanges();
 
+            // ❗ Response زي ما هو
             return Ok("Task added");
         }
+
+
         [HttpPut("{id}/archive")]
         [Authorize(Policy = "LEADS_DELETE")] // أو LEADS_ARCHIVE
         public IActionResult Archive(int id)
@@ -1396,6 +1391,25 @@ public class LeadsController : ControllerBase
                 .ToList();
 
             return Ok(leads);
+        }
+        [HttpGet("{id}/follow-up-history")]
+        [Authorize(Policy = "LEADS_VIEW")]
+        public IActionResult GetFollowUpHistory(int id)
+        {
+            var history = _context.LeadFollowUpLogs
+                .AsNoTracking()
+                .Where(x => x.LeadId == id)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => new
+                {
+                    x.FollowUpDate,
+                    x.Reason,
+                    Source = x.Source.ToString(),
+                    x.CreatedAt
+                })
+                .ToList();
+
+            return Ok(history);
         }
 
 

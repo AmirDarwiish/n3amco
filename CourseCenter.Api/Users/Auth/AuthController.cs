@@ -1,6 +1,7 @@
 ﻿using CourseCenter.Api.Users;
 using CourseCenter.Api.Users.Auth;
 using CourseCenter.Api.Users.Permissions;
+using CourseCenter.Api.Users.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -18,19 +19,25 @@ namespace CourseCenter.Api.Users.Auth
     public class AuthController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IUserActivityLogger _userActivityLogger; 
         private readonly IConfiguration _config;
 
-        public AuthController(ApplicationDbContext context, IConfiguration config)
+        public AuthController(
+     ApplicationDbContext context,
+     IConfiguration config,
+     IUserActivityLogger userActivityLogger)
         {
             _context = context;
             _config = config;
+            _userActivityLogger = userActivityLogger;
         }
+
 
         // =========================
         // LOGIN
         // =========================
         [HttpPost("login")]
-        public IActionResult Login(LoginRequest request)
+        public async Task<IActionResult> Login(LoginRequest request)
         {
             var user = _context.Users
                 .Include(u => u.UserRoles)
@@ -54,11 +61,16 @@ namespace CourseCenter.Api.Users.Auth
 
             var refreshToken = GenerateRefreshToken(user.Id);
             _context.RefreshTokens.Add(refreshToken);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
 
             SetRefreshCookie(refreshToken);
 
-            var roles = user.UserRoles.Select(r => r.Role.Name).ToList();
+            // ✅ تسجيل Login Activity
+            await _userActivityLogger.LogAsync(user.Id, "Login");
+
+            var roles = user.UserRoles
+                .Select(r => r.Role.Name)
+                .ToList();
 
             var permissions = _context.RolePermissions
                 .Where(rp => roles.Contains(rp.Role))
@@ -75,6 +87,7 @@ namespace CourseCenter.Api.Users.Auth
                 Permissions = permissions
             });
         }
+
 
         // =========================
         // REFRESH
