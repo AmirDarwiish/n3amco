@@ -74,7 +74,7 @@ public class DashboardService
             {
                 TotalSales = totalSales,
                 TotalCost = totalCost,
-                TotalProfit = totalSales - totalCost - supplierPayments,
+                TotalProfit = totalSales - totalCost,
                 TotalMilkCollected = totalMilk,
                 TotalSupplierPayments = supplierPayments
             },

@@ -61,7 +61,7 @@ public class MilkCollectionsController : ControllerBase
             await _context.SaveChangesAsync();
 
             // 🧊 2. Create Batch (FIFO)
-            var batch = new ProductBatch
+           /* var batch = new ProductBatch
             {
                 ProductId = request.ProductId,
                 Quantity = request.Quantity,
@@ -73,7 +73,7 @@ public class MilkCollectionsController : ControllerBase
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.ProductBatches.Add(batch);
+            _context.ProductBatches.Add(batch); */
 
             // 💰 3. Update Supplier Balance
             supplier.CurrentBalance += milk.TotalPrice;

@@ -36,11 +36,51 @@ public class CustomersController : ControllerBase
             Phone = dto.Phone,
             Address = dto.Address,
             CreatedAt = DateTime.UtcNow,
-            CurrentBalance = 0
+            CurrentBalance = dto.OpeningBalance  // ← غيرها من 0
         };
 
         _context.Customers.Add(customer);
         await _context.SaveChangesAsync();
+
+        // ✅ قيد الرصيد الافتتاحي
+        if (dto.OpeningBalance > 0)
+        {
+            var receivableAccount = await _context.AccountSettings
+                .Where(x => x.Key == "CustomerReceivable")
+                .Select(x => x.AccountId)
+                .FirstOrDefaultAsync();
+
+            var entry = new JournalEntry
+            {
+                Date = DateTime.UtcNow,
+                Description = $"رصيد افتتاحي - عميل: {customer.Name}",
+                Reference = $"CUST-OPEN-{customer.Id}",
+                Type = JournalEntryType.Manual,
+                IsPosted = true,
+                CreatedBy = "System",
+                CreatedAt = DateTime.UtcNow,
+                Lines = new List<JournalLine>
+            {
+                new JournalLine
+                {
+                    AccountId = receivableAccount, // ذمم العملاء
+                    Debit = dto.OpeningBalance,
+                    Credit = 0,
+                    Notes = "رصيد افتتاحي عميل"
+                },
+                new JournalLine
+                {
+                    AccountId = 12, // الأرباح المحتجزة
+                    Debit = 0,
+                    Credit = dto.OpeningBalance,
+                    Notes = "مقابل رصيد افتتاحي عميل"
+                }
+            }
+            };
+
+            _context.JournalEntries.Add(entry);
+            await _context.SaveChangesAsync();
+        }
 
         return Ok(ApiResponse<int>.SuccessResponse(customer.Id, "Customer created"));
     }

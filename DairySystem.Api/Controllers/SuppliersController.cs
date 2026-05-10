@@ -40,6 +40,39 @@ public class SuppliersController : ControllerBase
 
             _context.Suppliers.Add(supplier);
             await _context.SaveChangesAsync();
+            if (dto.OpeningBalance > 0)
+            {
+                var entry = new JournalEntry
+                {
+                    Date = DateTime.UtcNow,
+                    Description = $"رصيد افتتاحي - مورد: {supplier.Name}",
+                    Reference = $"SUP-OPEN-{supplier.Id}",
+                    Type = JournalEntryType.Manual,
+                    IsPosted = true,
+                    CreatedBy = "System",
+                    CreatedAt = DateTime.UtcNow,
+                    Lines = new List<JournalLine>
+        {
+            new JournalLine
+            {
+                AccountId = 9,   // ذمم الموردين
+                Debit = 0,
+                Credit = dto.OpeningBalance,
+                Notes = "رصيد افتتاحي مورد"
+            },
+            new JournalLine
+            {
+                AccountId = 12,  // الأرباح المحتجزة
+                Debit = dto.OpeningBalance,
+                Credit = 0,
+                Notes = "مقابل رصيد افتتاحي مورد"
+            }
+        }
+                };
+
+                _context.JournalEntries.Add(entry);
+                await _context.SaveChangesAsync();
+            }
 
             return Ok(ApiResponse<int>.SuccessResponse(supplier.Id));
         }

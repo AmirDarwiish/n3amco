@@ -5,7 +5,7 @@
     public string Name { get; set; }
     public string Phone { get; set; }
     public string Address { get; set; }
-
+    public decimal OpeningBalance { get; set; } = 0;
     public decimal CurrentBalance { get; set; } // عليه كام
 
     public bool IsActive { get; set; } = true;
