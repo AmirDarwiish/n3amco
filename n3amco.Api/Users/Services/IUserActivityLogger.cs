@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Users.Services
+﻿namespace n3amco.Api.Users.Services
 {
     public interface IUserActivityLogger
     {

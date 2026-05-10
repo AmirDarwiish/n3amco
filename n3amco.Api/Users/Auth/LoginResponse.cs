@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Users.Auth
+﻿namespace n3amco.Api.Users.Auth
 {
     public class LoginResponse
     {

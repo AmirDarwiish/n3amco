@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Users.Permissions
+﻿namespace n3amco.Api.Users.Permissions
 {
     public class AssignPermissionDto
     {

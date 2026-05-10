@@ -1,4 +1,4 @@
-﻿using DairySystem.Api.Units;
+﻿using n3amco.Api.Units;
 using Microsoft.EntityFrameworkCore;
 
 public static class UnitSeeder

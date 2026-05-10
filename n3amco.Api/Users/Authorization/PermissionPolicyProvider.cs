@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
-namespace DairySystem.Api.Users.Authorization
+namespace n3amco.Api.Users.Authorization
 {
     public class PermissionPolicyProvider : IAuthorizationPolicyProvider
     {

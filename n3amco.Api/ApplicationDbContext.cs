@@ -1,11 +1,11 @@
-﻿using DairySystem.Api.suppliers;
-using DairySystem.Api.Units;
-using DairySystem.Api.Users;
-using DairySystem.Api.Users.Auth;
-using DairySystem.Api.Users.Roles;
+﻿using n3amco.Api.suppliers;
+using n3amco.Api.Units;
+using n3amco.Api.Users;
+using n3amco.Api.Users.Auth;
+using n3amco.Api.Users.Roles;
 using Microsoft.EntityFrameworkCore;
 
-namespace DairySystem.Api
+namespace n3amco.Api
 {
     public class ApplicationDbContext : DbContext
     {

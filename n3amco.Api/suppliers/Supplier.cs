@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.suppliers
+﻿namespace n3amco.Api.suppliers
 {
     public class Supplier
     {

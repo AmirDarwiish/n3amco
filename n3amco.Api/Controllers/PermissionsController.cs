@@ -1,8 +1,8 @@
-﻿using DairySystem.Api.Users.Permissions;
+﻿using n3amco.Api.Users.Permissions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DairySystem.Api.Controllers
+namespace n3amco.Api.Controllers
 {
     [ApiController]
     [Route("api/permissions")]

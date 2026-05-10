@@ -1,4 +1,4 @@
-﻿using DairySystem.Api;
+﻿using n3amco.Api;
 using Microsoft.EntityFrameworkCore;
 public interface IJournalService
 {

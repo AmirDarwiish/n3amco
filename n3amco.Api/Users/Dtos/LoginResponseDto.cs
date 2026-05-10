@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Users.Auth.DTOs
+﻿namespace n3amco.Api.Users.Auth.DTOs
 {
     public class LoginResponseDto
     {

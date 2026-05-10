@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Users.Roles
+﻿namespace n3amco.Api.Users.Roles
 {
     public class Role
     {

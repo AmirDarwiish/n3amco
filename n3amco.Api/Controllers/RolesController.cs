@@ -1,11 +1,11 @@
-﻿using DairySystem.Api.Users.Dtos;
-using DairySystem.Api.Users.Permissions;
-using DairySystem.Api.Users.Roles;
+﻿using n3amco.Api.Users.Dtos;
+using n3amco.Api.Users.Permissions;
+using n3amco.Api.Users.Roles;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace DairySystem.Api.Controllers
+namespace n3amco.Api.Controllers
 {
     [ApiController]
     [Route("api/roles")]

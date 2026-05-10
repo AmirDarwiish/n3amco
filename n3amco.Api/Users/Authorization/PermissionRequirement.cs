@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 
-namespace DairySystem.Api.Users.Authorization
+namespace n3amco.Api.Users.Authorization
 {
     public class PermissionRequirement : IAuthorizationRequirement
     {

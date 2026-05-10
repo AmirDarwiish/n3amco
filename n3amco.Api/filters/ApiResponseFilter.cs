@@ -1,8 +1,8 @@
-﻿using DairySystem.Api.Common;
+﻿using n3amco.Api.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace DairySystem.Api.Filters
+namespace n3amco.Api.Filters
 {
     public class ApiResponseFilter : IResultFilter
     {

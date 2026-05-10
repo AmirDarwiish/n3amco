@@ -1,4 +1,4 @@
-﻿    namespace DairySystem.Api.Users
+﻿    namespace n3amco.Api.Users
 {
     public class UserActivityLog
     {

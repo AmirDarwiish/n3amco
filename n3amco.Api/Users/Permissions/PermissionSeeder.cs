@@ -1,8 +1,8 @@
-﻿using DairySystem.Api;
+﻿using n3amco.Api;
 using Microsoft.AspNetCore.Authorization;
 using System.Reflection;
 
-namespace DairySystem.Api.Users.Permissions
+namespace n3amco.Api.Users.Permissions
 {
     public static class PermissionSeeder
     {

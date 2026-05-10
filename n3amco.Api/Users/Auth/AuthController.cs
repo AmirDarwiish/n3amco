@@ -1,7 +1,7 @@
-﻿using DairySystem.Api.Common;
-using DairySystem.Api.Users;
-using DairySystem.Api.Users.Auth;
-using DairySystem.Api.Users.Services;
+﻿using n3amco.Api.Common;
+using n3amco.Api.Users;
+using n3amco.Api.Users.Auth;
+using n3amco.Api.Users.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +13,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace DairySystem.Api.Users.Auth
+namespace n3amco.Api.Users.Auth
 {
     [ApiController]
     [Route("api/auth")]

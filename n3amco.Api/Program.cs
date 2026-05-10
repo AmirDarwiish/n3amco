@@ -1,11 +1,11 @@
-﻿using DairySystem.Api;
-using DairySystem.Api.Common;
-using DairySystem.Api.Filters;
-using DairySystem.Api.Middleware;
-using DairySystem.Api.Users.Authorization;
-using DairySystem.Api.Users.Filters;
-using DairySystem.Api.Users.Permissions;
-using DairySystem.Api.Users.Services;
+﻿using n3amco.Api;
+using n3amco.Api.Common;
+using n3amco.Api.Filters;
+using n3amco.Api.Middleware;
+using n3amco.Api.Users.Authorization;
+using n3amco.Api.Users.Filters;
+using n3amco.Api.Users.Permissions;
+using n3amco.Api.Users.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -32,7 +32,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "DairySystem API",
+        Title = "n3amco API",
         Version = "v1"
     });
 
@@ -149,6 +149,6 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    DairySystem.Api.Users.Permissions.PermissionSeeder.Seed(context);
+    n3amco.Api.Users.Permissions.PermissionSeeder.Seed(context);
 }
 app.Run();

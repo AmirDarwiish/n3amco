@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
-using DairySystem.Api.Common;
+using n3amco.Api.Common;
 
-namespace DairySystem.Api.Middleware
+namespace n3amco.Api.Middleware
 {
     public class ExceptionMiddleware
     {

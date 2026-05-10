@@ -1,4 +1,4 @@
-﻿using DairySystem.Api.Users.Roles;
+﻿using n3amco.Api.Users.Roles;
 
 public class User
 {

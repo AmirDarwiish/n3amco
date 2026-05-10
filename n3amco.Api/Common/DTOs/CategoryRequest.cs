@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Common.DTOs
+﻿namespace n3amco.Api.Common.DTOs
 {
     public class CategoryRequest
     {

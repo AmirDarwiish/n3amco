@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Common
+﻿namespace n3amco.Api.Common
 {
     public class PagedResponse<T>
     {

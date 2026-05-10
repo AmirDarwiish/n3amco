@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Users.Dtos
+﻿namespace n3amco.Api.Users.Dtos
 {
     public class ResetUserPasswordDto
     {

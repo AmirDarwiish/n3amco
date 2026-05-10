@@ -1,4 +1,4 @@
-﻿namespace DairySystem.Api.Users.DTOs
+﻿namespace n3amco.Api.Users.DTOs
 {
     public class ChangeUserRoleDto
     {

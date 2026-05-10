@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace DairySystem.Api.Common
+namespace n3amco.Api.Common
 {
     public static class QueryableExtensions
     {

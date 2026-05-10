@@ -1,8 +1,8 @@
-﻿using DairySystem.Api.Common;
+﻿using n3amco.Api.Common;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 
-namespace DairySystem.Api.Users.Authorization
+namespace n3amco.Api.Users.Authorization
 {
     public class PermissionHandler : AuthorizationHandler<PermissionRequirement>
     {

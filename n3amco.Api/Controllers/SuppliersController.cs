@@ -1,5 +1,5 @@
-﻿using DairySystem.Api;
-using DairySystem.Api.suppliers;
+﻿using n3amco.Api;
+using n3amco.Api.suppliers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

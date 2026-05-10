@@ -1,9 +1,9 @@
-﻿using DairySystem.Api.Users.Attributes;
-using DairySystem.Api.Users.Services;
+﻿using n3amco.Api.Users.Attributes;
+using n3amco.Api.Users.Services;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Security.Claims;
 
-namespace DairySystem.Api.Users.Filters
+namespace n3amco.Api.Users.Filters
 {
     public class UserActivityLogFilter : IAsyncActionFilter
     {

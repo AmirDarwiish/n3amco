@@ -1,4 +1,4 @@
-﻿using DairySystem.Api.suppliers;
+﻿using n3amco.Api.suppliers;
 
 public class SupplierPayment
 {

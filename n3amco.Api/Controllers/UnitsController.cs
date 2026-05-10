@@ -1,11 +1,11 @@
-﻿using DairySystem.Api;
-using DairySystem.Api.Common;
-using DairySystem.Api.Units;
+﻿using n3amco.Api;
+using n3amco.Api.Common;
+using n3amco.Api.Units;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace DairySystem.Api.Controllers
+namespace n3amco.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

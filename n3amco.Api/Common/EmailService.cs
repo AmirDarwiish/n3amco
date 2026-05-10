@@ -1,5 +1,5 @@
 ﻿// Services/EmailService.cs
-using DairySystem.Api.Common;
+using n3amco.Api.Common;
 using System.Net;
 using System.Net.Mail;
 
